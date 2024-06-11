@@ -24,7 +24,7 @@ function fetchRawDataTokens() {
   }
 
   sheet.clearContents();
-  sheet.appendRow(['Wallet Address', 'Asset Name', 'Chain Name', 'Amount', 'Value (USD)', 'Value (ETH)']);
+  sheet.appendRow(['Wallet Address', 'Asset Name', 'Chain Name', 'Amount', 'Value (USD)', 'Value (ETH)', '24h Change (%)']);
 
   walletAddresses.forEach(walletAddress => {
     const countedProtocols = new Set();
@@ -55,7 +55,8 @@ function fetchTokens(walletAddress, chainId, sheet) {
       if (valueUSD < 200) return; // Ignore assets below $200
 
       const valueETH = valueUSD / ethPrice;
-      sheet.appendRow([walletAddress, token.symbol, chainId, token.amount, valueUSD, valueETH]);
+      const change24h = token.price_24h_change * 100; // Convert to percentage
+      sheet.appendRow([walletAddress, token.symbol, chainId, token.amount, valueUSD, valueETH, change24h.toFixed(2)]);
     });
 
   } catch (error) {
@@ -112,8 +113,9 @@ function fetchProtocolBalances(walletAddress, chainId, protocolId, sheet) {
         if (netValueUSD < 200) return; // Ignore assets below $200
 
         const netValueETH = netValueUSD / ethPrice;
+        const change24h = item.stats.price_24h_change * 100; // Convert to percentage
         const assetName = `${item.name} (${protocolId})`;
-        sheet.appendRow([walletAddress, assetName, chainId, item.stats.asset_amount, netValueUSD, netValueETH]);
+        sheet.appendRow([walletAddress, assetName, chainId, item.stats.asset_amount, netValueUSD, netValueETH, change24h.toFixed(2)]);
       });
     } else {
       Logger.log(`No portfolio items found for wallet ${walletAddress} on protocol ${protocolId} and chain ${chainId}`);
@@ -182,7 +184,8 @@ function fetchNFTs(walletAddress, chainId, sheet) {
           collectionName,
           totalNFTs: 0,
           totalETHSpent: 0,
-          totalUSDValue: 0
+          totalUSDValue: 0,
+          change24h: 0
         };
       }
 
@@ -190,10 +193,12 @@ function fetchNFTs(walletAddress, chainId, sheet) {
       const valueUSD = valueETH * ethPrice;
       const refundValue = nft.pay_token ? nft.pay_token.amount / Math.pow(10, nft.pay_token.decimals) : 0;
       const lastTradePrice = nft.last_trade_price ? nft.last_trade_price.usd : 0;
+      const change24h = nft.price_24h_change * 100; // Convert to percentage
 
       collections[collectionName].totalNFTs += 1;
       collections[collectionName].totalETHSpent += refundValue;
       collections[collectionName].totalUSDValue += valueUSD;
+      collections[collectionName].change24h += change24h;
     });
 
     Object.values(collections).forEach((collection) => {
@@ -203,7 +208,8 @@ function fetchNFTs(walletAddress, chainId, sheet) {
         collection.chainId,
         collection.totalNFTs,
         collection.totalETHSpent,
-        collection.totalUSDValue
+        collection.totalUSDValue,
+        collection.change24h.toFixed(2)
       ]);
     });
 
